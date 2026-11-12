@@ -1,0 +1,20 @@
+
+{
+  "name": "Я молодец!",
+  "short_name": "Я молодец!",
+  "description": "Маленькие шаги тоже заслуживают любви ❤️",
+  "lang": "ru",
+  "start_url": "/ya-molodets/",
+  "scope": "/ya-molodets/",
+  "display": "standalone",
+  "background_color": "#FAF5F1",
+  "theme_color": "#F5DCE5",
+  "icons": [
+    {
+      "src": "/ya-molodets/icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}
