@@ -1,0 +1,352 @@
+
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="theme-color" content="#f5d9df">
+<title>Я молодец! 🌸</title>
+<style>
+*{box-sizing:border-box}
+body{margin:0;background:#faf5f1;color:#51454c;font:16px system-ui,sans-serif}
+header{padding:28px 20px 18px;background:#f5d9df;border-radius:0 0 28px 28px}
+main{max-width:650px;margin:auto;padding:16px}
+h1{margin:0;font-size:29px}
+h2{font-size:19px;margin:24px 0 12px}
+small,.muted{color:#887b82}
+.card{background:white;border-radius:20px;padding:17px;margin:12px 0;box-shadow:0 3px 14px #56434c0b}
+.pets{border-left:5px solid #efad91}
+.health{border-left:5px solid #9bbca4}
+.home{border-left:5px solid #b5a2d7}
+.work{border-left:5px solid #9abde1}
+.self{border-left:5px solid #e9a4bc}
+.title{font-weight:700;font-size:17px}
+.progress{height:9px;border-radius:12px;background:#f0e9eb;overflow:hidden;margin:12px 0}
+.fill{height:100%;background:#8fb99d;border-radius:12px;transition:width .35s}
+button{font:inherit;cursor:pointer;border:0;border-radius:13px;padding:11px 15px;background:#f4d7e2;color:#51454c}
+button.primary{background:#a9c9b1}
+button:active{transform:scale(.97)}
+.actions{display:flex;gap:8px;flex-wrap:wrap;margin:12px 0}
+.check{display:flex;align-items:center;gap:11px;padding:10px 0;border-top:1px solid #f5eff1}
+input[type=checkbox]{width:24px;height:24px;accent-color:#83ae92;cursor:pointer}
+input,select{font:inherit;border:1px solid #ded3d8;border-radius:10px;padding:11px;width:100%;background:white}
+label{display:block;margin:10px 0}
+.hidden{display:none}
+.note{font-size:13px;color:#887b82}
+.done{animation:pop .3s ease}
+@keyframes pop{50%{transform:scale(1.015);background:#edf8ee}}
+nav{display:flex;gap:7px;margin-top:15px}
+nav button{flex:1;padding:10px 4px;font-size:14px}
+.active{background:white}
+</style>
+</head>
+<body>
+<header>
+<h1>🌸 Я молодец!</h1>
+<p>Маленькие шаги тоже заслуживают любви ❤️</p>
+<nav>
+<button id="tabToday" class="active" onclick="show('today')">Сегодня</button>
+<button id="tabHistory" onclick="show('history')">История</button>
+<button id="tabManage" onclick="show('manage')">Мои дела</button>
+</nav>
+</header>
+<main>
+<section id="today">
+<div class="card">
+<b id="dateLabel"></b>
+<div class="progress"><div class="fill" id="dayBar"></div></div>
+<div id="dayStats"></div>
+<p id="kindWords">Ты уже молодец, что заботишься о себе ❤️</p>
+</div>
+<div id="todayTasks"></div>
+</section>
+
+<section id="history" class="hidden">
+<h2>📅 История заботы</h2>
+<div class="card">
+<label>Выбери день
+<input type="date" id="historyDate" onchange="renderHistory()">
+</label>
+<div id="historyContent"></div>
+</div>
+</section>
+
+<section id="manage" class="hidden">
+<h2>🐾 Мои питомцы</h2>
+<div id="petList"></div>
+<div class="card">
+<label>Имя питомца<input id="petName" placeholder="Например, Бари"></label>
+<button onclick="addPet()">Добавить питомца</button>
+</div>
+<h2>✨ Мои задачи</h2>
+<div id="taskList"></div>
+<button class="primary" onclick="newTask()">＋ Добавить задачу</button>
+<div id="editor" class="card hidden">
+<h2 id="editorTitle">Новая задача</h2>
+<label>Название<input id="taskName" placeholder="Например, зарядка для ног"></label>
+<label>Категория
+<select id="taskCategory" onchange="togglePet()">
+<option value="pets">🐱 Животные</option>
+<option value="health">🧘 Здоровье</option>
+<option value="home">🏡 Дом</option>
+<option value="work">💼 Работа</option>
+<option value="self">✨ Для себя</option>
+</select></label>
+<label id="petField">Питомец<select id="taskPet"></select></label>
+<label>Подробности или дозировка
+<input id="taskDetails" placeholder="Необязательно"></label>
+<label>Дата начала<input type="date" id="taskStart"></label>
+<label>Продолжительность в днях (0 — бессрочно)
+<input type="number" id="taskDuration" min="0" value="0"></label>
+<label>Повторение
+<select id="taskRepeat">
+<option value="daily">Каждый день</option>
+<option value="weekly">По дням недели</option>
+<option value="once">Один раз</option>
+</select></label>
+<label>Дни недели для еженедельных задач (1 — понедельник, 7 — воскресенье)
+<input id="taskWeekdays" placeholder="Например, 1,3,5"></label>
+<label>Сколько раз в день?
+<input id="taskCount" type="number" min="1" max="10" value="1"></label>
+<label>Названия приёмов через запятую
+<input id="taskSlots" placeholder="Например, Утро, Вечер"></label>
+<div class="actions">
+<button class="primary" onclick="saveTask()">Сохранить</button>
+<button onclick="cancelEdit()">Отмена</button>
+</div>
+</div>
+<h2>💾 Резервная копия</h2>
+<div class="card">
+<p class="note">Сохрани копию данных, чтобы не потерять отметки при очистке браузера или смене телефона.</p>
+<button onclick="backup()">Скачать копию</button>
+<label>Восстановить из копии
+<input type="file" accept=".json" onchange="restore(event)">
+</label>
+</div>
+</section>
+</main>
+<script>
+const KEY="ya-molodets-data-v1";
+const today=()=>localDate(new Date());
+function localDate(d){
+return d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0");
+}
+function addDays(s,n){
+let d=new Date(s+"T12:00:00");d.setDate(d.getDate()+n);return localDate(d);
+}
+function daysBetween(a,b){
+return Math.round((new Date(b+"T12:00:00")-new Date(a+"T12:00:00"))/86400000);
+}
+function initial(){
+let tasks=[
+{id:"urso",name:"Урсосан",category:"pets",pet:"Кошка",details:"1/8 капсулы",start:"2026-11-10",duration:21,repeat:"daily",count:2,slots:["Утро","Вечер"]},
+{id:"mol",name:"Молнупиравир",category:"pets",pet:"Кошка",details:"1/8 капсулы",start:"2026-11-12",duration:40,repeat:"daily",count:2,slots:["Утро","Вечер"]},
+{id:"legs",name:"Зарядка для ног",category:"health",pet:"",details:"Позаботиться о коленях",start:"2026-11-12",duration:0,repeat:"daily",count:1,slots:["Выполнено"]}
+];
+let checks={};
+for(let d of ["2026-11-10","2026-11-11","2026-11-12"])
+for(let i=0;i<2;i++)checks["urso|"+d+"|"+i]=true;
+for(let i=0;i<2;i++)checks["mol|2026-11-12|"+i]=true;
+return {pets:["Кошка","Бари","Ушастик"],tasks,checks};
+}
+let data;
+try{
+data=JSON.parse(localStorage.getItem(KEY))||initial();
+if(!Array.isArray(data.tasks)||!Array.isArray(data.pets)||!data.checks)throw Error();
+}catch(e){data=initial();}
+function persist(){
+try{localStorage.setItem(KEY,JSON.stringify(data));}
+catch(e){alert("Не удалось сохранить данные. Сделай резервную копию.");}
+}
+persist();
+function esc(s){
+return String(s??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+}
+function eligible(t,date){
+let n=daysBetween(t.start,date);
+if(n<0||(t.duration>0&&n>=t.duration))return false;
+if(t.repeat==="once")return n===0;
+if(t.repeat==="weekly"){
+let weekday=new Date(date+"T12:00:00").getDay()||7;
+return (t.weekdays||[]).includes(weekday);
+}
+return true;
+}
+function key(t,date,i){return t.id+"|"+date+"|"+i}
+function slots(t){
+return Array.isArray(t.slots)&&t.slots.length===Number(t.count)?t.slots:
+Array.from({length:Number(t.count)||1},(_,i)=>"Приём "+(i+1));
+}
+function categoryName(c){
+return {pets:"🐱 Животные",health:"🧘 Здоровье",home:"🏡 Дом",work:"💼 Работа",self:"✨ Для себя"}[c]||"Другое";
+}
+function renderDay(date,readonly=false){
+let list=data.tasks.filter(t=>eligible(t,date));
+let total=0,done=0;
+let html="";
+for(let cat of ["pets","health","home","work","self"]){
+let group=list.filter(t=>t.category===cat);
+if(!group.length)continue;
+html+="<h2>"+categoryName(cat)+"</h2>";
+for(let t of group){
+let checked=slots(t).filter((_,i)=>data.checks[key(t,date,i)]).length;
+total+=slots(t).length;done+=checked;
+let course=t.duration>0?" · День "+(daysBetween(t.start,date)+1)+" из "+t.duration:"";
+html+='<div class="card '+esc(cat)+'" id="card-'+esc(t.id)+'"><div class="title">'+esc(t.name)+'</div>';
+if(t.pet)html+='<small>🐾 '+esc(t.pet)+'</small>';
+html+='<p class="muted">'+esc(t.details||"")+esc(course)+'</p>';
+html+='<div class="progress"><div class="fill" style="width:'+(100*checked/slots(t).length)+'%"></div></div>';
+slots(t).forEach((slot,i)=>{
+let k=key(t,date,i),yes=!!data.checks[k];
+html+='<label class="check"><input type="checkbox" '+(yes?"checked ":"")+(readonly?"disabled ":"")+'data-task="'+esc(t.id)+'" data-date="'+date+'" data-index="'+i+'"><span>'+esc(slot)+'</span></label>';
+});
+html+="</div>";
+}
+}
+if(!list.length)html='<div class="card">На этот день задач нет. Можно просто отдохнуть 🌷</div>';
+return {html,total,done};
+}
+function bindChecks(container){
+container.querySelectorAll("input[type=checkbox][data-task]").forEach(input=>{
+input.addEventListener("change",()=>{
+let k=input.dataset.task+"|"+input.dataset.date+"|"+input.dataset.index;
+if(input.checked)data.checks[k]=true;else delete data.checks[k];
+persist();
+renderToday();
+renderHistory();
+});
+});
+}
+function renderToday(){
+document.getElementById("dateLabel").textContent=new Date().toLocaleDateString("ru-RU",{weekday:"long",day:"numeric",month:"long"});
+let r=renderDay(today());
+document.getElementById("todayTasks").innerHTML=r.html;
+document.getElementById("dayBar").style.width=(r.total?100*r.done/r.total:0)+"%";
+document.getElementById("dayStats").textContent=r.done+" из "+r.total+" выполнено";
+document.getElementById("kindWords").textContent=r.total&&r.done===r.total?
+"Ты сегодня позаботилась о себе и о тех, кто от тебя зависит. Я молодец! ❤️":
+r.done?"Каждая галочка — это твоя забота. Ты молодец! 🌸":
+"Сегодня новый день. Не нужно быть идеальной ❤️";
+bindChecks(document.getElementById("todayTasks"));
+}
+function renderHistory(){
+let date=document.getElementById("historyDate").value||today();
+let r=renderDay(date);
+document.getElementById("historyContent").innerHTML="<p>Выполнено: "+r.done+" из "+r.total+"</p>"+r.html;
+bindChecks(document.getElementById("historyContent"));
+}
+function show(tab){
+for(let name of ["today","history","manage"]){
+document.getElementById(name).classList.toggle("hidden",name!==tab);
+document.getElementById("tab"+name[0].toUpperCase()+name.slice(1)).classList.toggle("active",name===tab);
+}
+if(tab==="manage")renderManage();
+if(tab==="history")renderHistory();
+if(tab==="today")renderToday();
+}
+function renderManage(){
+document.getElementById("petList").innerHTML=data.pets.map((p,i)=>'<div class="card">🐾 '+esc(p)+' <button data-remove-pet="'+i+'">Удалить</button></div>').join("");
+document.querySelectorAll("[data-remove-pet]").forEach(b=>b.onclick=()=>{
+let i=Number(b.dataset.removePet);
+if(data.tasks.some(t=>t.pet===data.pets[i]))return alert("Сначала измени или удали задачи этого питомца.");
+if(confirm("Удалить питомца?")){data.pets.splice(i,1);persist();renderManage();}
+});
+document.getElementById("taskList").innerHTML=data.tasks.map(t=>
+'<div class="card"><b>'+esc(t.name)+'</b><p class="note">'+esc(t.pet||categoryName(t.category))+'</p><button data-edit="'+esc(t.id)+'">Изменить</button> <button data-delete="'+esc(t.id)+'">Удалить</button></div>'
+).join("");
+document.querySelectorAll("[data-edit]").forEach(b=>b.onclick=()=>editTask(b.dataset.edit));
+document.querySelectorAll("[data-delete]").forEach(b=>b.onclick=()=>{
+if(!confirm("Удалить задачу и её историю отметок?"))return;
+data.tasks=data.tasks.filter(t=>t.id!==b.dataset.delete);
+Object.keys(data.checks).forEach(k=>{if(k.startsWith(b.dataset.delete+"|"))delete data.checks[k]});
+persist();renderManage();renderToday();
+});
+document.getElementById("taskPet").innerHTML='<option value="">Не указан</option>'+data.pets.map(p=>'<option value="'+esc(p)+'">'+esc(p)+'</option>').join("");
+}
+function addPet(){
+let name=document.getElementById("petName").value.trim();
+if(!name)return;
+if(!data.pets.includes(name))data.pets.push(name);
+document.getElementById("petName").value="";
+persist();renderManage();
+}
+let editing=null;
+function togglePet(){
+document.getElementById("petField").classList.toggle("hidden",document.getElementById("taskCategory").value!=="pets");
+}
+function newTask(){
+editing=null;
+document.getElementById("editorTitle").textContent="Новая задача";
+document.getElementById("taskName").value="";
+document.getElementById("taskCategory").value="health";
+document.getElementById("taskDetails").value="";
+document.getElementById("taskStart").value=today();
+document.getElementById("taskDuration").value=0;
+document.getElementById("taskRepeat").value="daily";
+document.getElementById("taskWeekdays").value="";
+document.getElementById("taskCount").value=1;
+document.getElementById("taskSlots").value="";
+document.getElementById("taskPet").value="";
+document.getElementById("editor").classList.remove("hidden");
+togglePet();document.getElementById("editor").scrollIntoView({behavior:"smooth"});
+}
+function editTask(id){
+let t=data.tasks.find(x=>x.id===id);if(!t)return;
+newTask();editing=id;
+document.getElementById("editorTitle").textContent="Изменить задачу";
+document.getElementById("taskName").value=t.name;
+document.getElementById("taskCategory").value=t.category;
+document.getElementById("taskPet").value=t.pet||"";
+document.getElementById("taskDetails").value=t.details||"";
+document.getElementById("taskStart").value=t.start;
+document.getElementById("taskDuration").value=t.duration;
+document.getElementById("taskRepeat").value=t.repeat;
+document.getElementById("taskWeekdays").value=(t.weekdays||[]).join(",");
+document.getElementById("taskCount").value=t.count;
+document.getElementById("taskSlots").value=slots(t).join(", ");
+togglePet();
+}
+function cancelEdit(){document.getElementById("editor").classList.add("hidden")}
+function saveTask(){
+let name=document.getElementById("taskName").value.trim();
+let start=document.getElementById("taskStart").value;
+let count=Number(document.getElementById("taskCount").value);
+let duration=Number(document.getElementById("taskDuration").value);
+let repeat=document.getElementById("taskRepeat").value;
+let weekdays=document.getElementById("taskWeekdays").value.split(",").map(x=>Number(x.trim())).filter(x=>x>=1&&x<=7);
+if(!name||!start||!Number.isInteger(count)||count<1||count>10||!Number.isInteger(duration)||duration<0)return alert("Проверь название, дату и количество приёмов.");
+if(repeat==="weekly"&&!weekdays.length)return alert("Укажи дни недели.");
+let labels=document.getElementById("taskSlots").value.split(",").map(x=>x.trim()).filter(Boolean);
+if(labels.length&&labels.length!==count)return alert("Количество названий приёмов должно совпадать с количеством раз в день.");
+let t={id:editing||"task-"+Date.now(),name,start,count,duration,repeat,weekdays,slots:labels.length?labels:Array.from({length:count},(_,i)=>count===1?"Выполнено":"Приём "+(i+1)),category:document.getElementById("taskCategory").value,pet:document.getElementById("taskCategory").value==="pets"?document.getElementById("taskPet").value:"",details:document.getElementById("taskDetails").value.trim()};
+if(editing){
+let index=data.tasks.findIndex(x=>x.id===editing);
+data.tasks[index]=t;
+}else data.tasks.push(t);
+persist();cancelEdit();renderManage();renderToday();
+}
+function backup(){
+let blob=new Blob([JSON.stringify(data,null,2)],{type:"application/json"});
+let a=document.createElement("a");a.href=URL.createObjectURL(blob);
+a.download="ya-molodets-backup-"+today()+".json";a.click();
+setTimeout(()=>URL.revokeObjectURL(a.href),1000);
+}
+function restore(e){
+let file=e.target.files[0];if(!file)return;
+let reader=new FileReader();
+reader.onload=()=>{
+try{
+let restored=JSON.parse(reader.result);
+if(!Array.isArray(restored.tasks)||!Array.isArray(restored.pets)||!restored.checks||typeof restored.checks!=="object")throw Error();
+if(!confirm("Заменить текущие данные резервной копией?"))return;
+data=restored;persist();renderManage();renderToday();renderHistory();
+alert("Данные восстановлены 🌸");
+}catch(err){alert("Не удалось прочитать резервную копию.");}
+};
+reader.readAsText(file);
+}
+document.getElementById("historyDate").value=today();
+renderToday();
+</script>
+</body>
+</html>
