@@ -350,5 +350,16 @@ reader.readAsText(file);
 document.getElementById("historyDate").value=today();
 renderToday();
 </script>
+  
+<script>
+if ("serviceWorker" in navigator) {
+  window.addEventListener("load", () => {
+    navigator.serviceWorker
+      .register("./sw.js")
+      .then(() => console.log("Я молодец! готово к работе офлайн ❤️"))
+      .catch(error => console.log("Ошибка регистрации:", error));
+  });
+}
+</script>
 </body>
 </html>
