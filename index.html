@@ -93,6 +93,7 @@ nav button{flex:1;padding:10px 4px;font-size:14px}
 <nav>
 <button id="tabToday" class="active" onclick="show('today')">Сегодня</button>
 <button id="tabHistory" onclick="show('history')">История</button>
+<button id="tabWins" onclick="show('wins')">Мои победы ❤️</button>
 <button id="tabManage" onclick="show('manage')">Мои дела</button>
 </nav>
 </header>
@@ -105,6 +106,47 @@ nav button{flex:1;padding:10px 4px;font-size:14px}
 <p id="kindWords">Ты уже молодец, что заботишься о себе ❤️</p>
 </div>
 <div id="todayTasks"></div>
+</section>
+
+<section id="wins" class="hidden">
+  <h2>💗 Мои маленькие победы</h2>
+
+  <div class="card">
+    <p>Здесь живут твои радости, достижения и тёплые моменты. Даже самые маленькие ❤️</p>
+
+    <label>
+      Дата события
+      <input type="date" id="winDate">
+    </label>
+
+    <label>
+      Что хорошего произошло?
+      <textarea id="winText" rows="4"
+        placeholder="Например: сегодня я разрешила себе отдохнуть без чувства вины..."></textarea>
+    </label>
+
+    <label>
+      Какое это событие?
+      <select id="winCategory">
+        <option value="joy">🌸 Маленькая радость</option>
+        <option value="self">💗 Забота о себе</option>
+        <option value="achievement">✨ Моя победа</option>
+        <option value="rest">☁️ Отдых</option>
+        <option value="other">🌷 Просто хороший момент</option>
+      </select>
+    </label>
+
+    <button type="button" onclick="saveWin()">
+      ❤️ Сохранить хорошее событие
+    </button>
+  </div>
+
+  <div class="card">
+    <h3>🌷 Мои тёплые воспоминания</h3>
+    <div id="winsList">
+      Здесь скоро появятся твои хорошие события ❤️
+    </div>
+  </div>
 </section>
 
 <section id="history" class="hidden">
@@ -206,10 +248,115 @@ try{
 data=JSON.parse(localStorage.getItem(KEY))||initial();
 if(!Array.isArray(data.tasks)||!Array.isArray(data.pets)||!data.checks)throw Error();
 }catch(e){data=initial();}
+
+/* Дневник маленьких побед */
+if (!Array.isArray(data.wins)) {
+  data.wins = [];
+}
+
 function persist(){
 try{localStorage.setItem(KEY,JSON.stringify(data));}
 catch(e){alert("Не удалось сохранить данные. Сделай резервную копию.");}
 }
+  
+/* Сохранение хороших событий */
+function saveWin() {
+/* Отображение дневника маленьких побед */
+function renderWins() {
+  const list = document.getElementById("winsList");
+  if (!list) return;
+
+  const categoryNames = {
+    joy: "🌸 Маленькая радость",
+    self: "💗 Забота о себе",
+    achievement: "✨ Моя победа",
+    rest: "☁️ Отдых",
+    other: "🌷 Хороший момент"
+  };
+
+  const wins = [...data.wins].sort((a, b) =>
+    b.date.localeCompare(a.date)
+  );
+
+  list.innerHTML = "";
+
+  if (wins.length === 0) {
+    const empty = document.createElement("p");
+    empty.textContent =
+      "Здесь скоро появятся твои тёплые воспоминания ❤️";
+    list.appendChild(empty);
+    return;
+  }
+
+  wins.forEach(win => {
+    const card = document.createElement("div");
+    card.className = "card";
+
+    const date = document.createElement("p");
+    date.style.color = "#9b7184";
+    date.textContent =
+      new Date(win.date + "T12:00:00")
+        .toLocaleDateString("ru-RU", {
+          day: "numeric",
+          month: "long",
+          year: "numeric"
+        });
+
+    const category = document.createElement("p");
+    category.textContent =
+      categoryNames[win.category] || categoryNames.other;
+
+    const description = document.createElement("p");
+    description.textContent = win.text;
+    description.style.whiteSpace = "pre-wrap";
+
+    const remove = document.createElement("button");
+    remove.type = "button";
+    remove.textContent = "🗑 Удалить";
+    remove.onclick = () => {
+      if (!confirm("Удалить это хорошее событие?")) return;
+
+      data.wins = data.wins.filter(item => item.id !== win.id);
+      persist();
+      renderWins();
+    };
+
+    card.append(date, category, description, remove);
+    list.appendChild(card);
+  });
+}
+
+  const date = document.getElementById("winDate").value;
+  const description = document.getElementById("winText").value.trim();
+  const category = document.getElementById("winCategory").value;
+
+  if (!date) {
+    alert("Выбери дату хорошего события 🌷");
+    return;
+  }
+
+  if (!description) {
+    alert("Напиши, что хорошего произошло ❤️");
+    return;
+  }
+
+  const win = {
+    id: "win-" + Date.now() + "-" + Math.random().toString(36).slice(2, 8),
+    date: date,
+    text: description,
+    category: category
+  };
+
+  data.wins.push(win);
+  persist();
+
+  document.getElementById("winText").value = "";
+  document.getElementById("winCategory").value = "joy";
+
+  renderWins();
+  showPraise("self");
+}
+
 persist();
 function esc(s){
 return String(s??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
@@ -349,7 +496,7 @@ document.getElementById("historyContent").innerHTML="<p>Выполнено: "+r.
 bindChecks(document.getElementById("historyContent"));
 }
 function show(tab){
-for(let name of ["today","history","manage"]){
+for(let name of ["today","history","wins","manage"]){
 document.getElementById(name).classList.toggle("hidden",name!==tab);
 document.getElementById("tab"+name[0].toUpperCase()+name.slice(1)).classList.toggle("active",name===tab);
 }
@@ -452,14 +599,27 @@ try{
 let restored=JSON.parse(reader.result);
 if(!Array.isArray(restored.tasks)||!Array.isArray(restored.pets)||!restored.checks||typeof restored.checks!=="object")throw Error();
 if(!confirm("Заменить текущие данные резервной копией?"))return;
-data=restored;persist();renderManage();renderToday();renderHistory();
+
+data = restored;
+if (!Array.isArray(data.wins)) data.wins = [];
+
+persist();
+renderManage();
+renderToday();
+renderHistory();
+renderWins();
+
 alert("Данные восстановлены 🌸");
 }catch(err){alert("Не удалось прочитать резервную копию.");}
 };
 reader.readAsText(file);
 }
-document.getElementById("historyDate").value=today();
+
+document.getElementById("historyDate").value = today();
+document.getElementById("winDate").value = today();
+
 renderToday();
+renderWins();
 </script>
   
 <script>
