@@ -182,8 +182,11 @@ nav button{flex:1;padding:10px 4px;font-size:14px}
 
   <h3>💗 Календарь маленьких побед</h3>
   <div id="winsCalendar"></div>
+  <div id="winsDayDetails" class="card hidden">
+  <h3 id="winsDayTitle">🌸 Этот день</h3>
+  <div id="winsDayContent"></div>
 </div>
-
+</div>
 
   <div class="card">
     <p>Здесь живут твои радости, достижения и тёплые моменты. Даже самые маленькие ❤️</p>
@@ -407,12 +410,67 @@ const monthStart = shiftDate(now, -29);
   // Последние 28 дней, включая сегодня
   for (let i = 27; i >= 0; i--) {
     const date = shiftDate(now, -i);
-    const day = document.createElement("div");
+    const day = document.createElement("button");
+day.type = "button";
+day.style.cursor = "pointer";
+day.onclick = () => renderWinsDay(date);
     day.className = "win-calendar-day";
 
     if (activeDates.has(date)) {
       day.classList.add("has-win");
     }
+
+/* Воспоминания за выбранный день */
+function renderWinsDay(date) {
+  const panel = document.getElementById("winsDayDetails");
+  const title = document.getElementById("winsDayTitle");
+  const content = document.getElementById("winsDayContent");
+
+  if (!panel || !title || !content) return;
+
+  const formatted = new Date(date + "T12:00:00")
+    .toLocaleDateString("ru-RU", {
+      day: "numeric",
+      month: "long",
+      year: "numeric"
+    });
+
+  title.textContent = "🌸 " + formatted;
+  content.innerHTML = "";
+
+  const wins = (data.wins || []).filter(w => w.date === date);
+
+  const checks = Object.keys(data.checks || {})
+    .filter(key => {
+      const parts = key.split("|");
+      return parts[1] === date && data.checks[key];
+    });
+
+  if (!wins.length && !checks.length) {
+    const empty = document.createElement("p");
+    empty.textContent = "В этот день пока нет записей. Но он всё равно был частью твоей жизни ❤️";
+    content.appendChild(empty);
+  }
+
+  wins.forEach(win => {
+    const item = document.createElement("p");
+    item.textContent = "💗 " + win.text;
+    content.appendChild(item);
+  });
+
+  checks.forEach(key => {
+    const parts = key.split("|");
+    const task = data.tasks.find(t => t.id === parts[0]);
+    const label = task ? task.name : "Выполненное дело";
+
+    const item = document.createElement("p");
+    item.textContent = "✓ " + label;
+    content.appendChild(item);
+  });
+
+  panel.classList.remove("hidden");
+  panel.scrollIntoView({ behavior: "smooth", block: "nearest" });
+}
 
     if (date === now) {
       day.classList.add("today");
