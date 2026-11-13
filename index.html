@@ -37,6 +37,50 @@ label{display:block;margin:10px 0}
 .note{font-size:13px;color:#887b82}
 .done{animation:pop .3s ease}
 @keyframes pop{50%{transform:scale(1.015);background:#edf8ee}}
+/* Поддерживающие сообщения */
+#praiseToast {
+  position: fixed;
+  left: 50%;
+  bottom: 35px;
+  transform: translate(-50%, 30px);
+  width: calc(100% - 36px);
+  max-width: 390px;
+  padding: 23px 22px;
+  background: #fff0f5;
+  border: 2px solid #f2cbd9;
+  border-radius: 24px;
+  box-shadow: 0 12px 35px #68495a30;
+  text-align: center;
+  z-index: 9999;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity .35s, transform .35s;
+}
+#praiseToast.visible {
+  opacity: 1;
+  transform: translate(-50%, 0);
+}
+#praiseHeart {
+  font-size: 40px;
+  margin-bottom: 8px;
+  animation: heartBeat .7s ease;
+}
+#praiseText {
+  font-size: 17px;
+  font-weight: 650;
+  line-height: 1.5;
+}
+@keyframes heartBeat {
+  0% { transform: scale(.6); }
+  50% { transform: scale(1.25); }
+  100% { transform: scale(1); }
+}
+@media (prefers-reduced-motion: reduce) {
+  #praiseToast, #praiseHeart {
+    animation: none;
+    transition: none;
+  }
+}
 nav{display:flex;gap:7px;margin-top:15px}
 nav button{flex:1;padding:10px 4px;font-size:14px}
 .active{background:white}
@@ -127,6 +171,12 @@ nav button{flex:1;padding:10px 4px;font-size:14px}
 </div>
 </section>
 </main>
+
+<div id="praiseToast" role="status" aria-live="polite">
+  <div id="praiseHeart">❤️</div>
+  <div id="praiseText"></div>
+</div>
+
 <script>
 const KEY="ya-molodets-data-v1";
 const today=()=>localDate(new Date());
@@ -208,14 +258,75 @@ html+="</div>";
 if(!list.length)html='<div class="card">На этот день задач нет. Можно просто отдохнуть 🌷</div>';
 return {html,total,done};
 }
+  
+const praiseMessages = {
+  pets: [
+    "Как хорошо, что у них есть ты! 🐾",
+    "Ещё один маленький шаг к выздоровлению. ❤️",
+    "Твоя забота делает их жизнь лучше!"
+  ],
+  health: [
+    "Ты сегодня позаботилась о себе! ❤️",
+    "Твоё здоровье важно. И ты молодец!",
+    "Спасибо, что нашла время для себя! 🌷",
+    "Не обязательно идеально. Важно, что ты сделала!"
+  ],
+  home: [
+    "Ты сделала свой мир чуточку уютнее! 🏡",
+    "Даже маленькое дело — это уже результат."
+  ],
+  work: [
+    "Ещё одно дело позади. Ты справилась! 💙",
+    "Твои усилия заслуживают признания!"
+  ],
+  self: [
+    "Твои желания тоже имеют значение. ❤️",
+    "Как здорово, что ты выбрала себя!",
+    "Ты заслуживаешь времени для себя. 🌸"
+  ]
+};
+
+let praiseTimer;
+
+function showPraise(category) {
+  const messages = praiseMessages[category] || praiseMessages.self;
+  const message = messages[Math.floor(Math.random() * messages.length)];
+  const toast = document.getElementById("praiseToast");
+  const heart = document.getElementById("praiseHeart");
+
+  document.getElementById("praiseText").textContent = message;
+  clearTimeout(praiseTimer);
+
+  toast.classList.remove("visible");
+  heart.style.animation = "none";
+  void heart.offsetWidth;
+  heart.style.animation = "";
+
+  requestAnimationFrame(() => {
+    toast.classList.add("visible");
+  });
+
+  praiseTimer = setTimeout(() => {
+    toast.classList.remove("visible");
+  }, 3500);
+}
+
 function bindChecks(container){
 container.querySelectorAll("input[type=checkbox][data-task]").forEach(input=>{
 input.addEventListener("change",()=>{
 let k=input.dataset.task+"|"+input.dataset.date+"|"+input.dataset.index;
-if(input.checked)data.checks[k]=true;else delete data.checks[k];
+
+if (input.checked) {
+  data.checks[k] = true;
+  const task = data.tasks.find(t => t.id === input.dataset.task);
+  if (task) showPraise(task.category);
+} else {
+  delete data.checks[k];
+}
 persist();
 renderToday();
 renderHistory();
+
 });
 });
 }
