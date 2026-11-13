@@ -158,10 +158,6 @@ nav{flex-wrap:wrap} nav button{min-width:calc(50% - 5px)}
 .win-calendar-day.selected{box-shadow:inset 0 0 0 2px #b96791}
 
 
-/* Отметки в календаре */
-.calendar-day-tasks .card{box-shadow:none;border:1px solid #f1e5ea;margin:8px 0;padding:12px}
-.calendar-day-tasks h2{font-size:15px;margin:14px 0 7px}
-.calendar-day-tasks .check{font-size:14px}
 /* Награды */
 .achievement-summary{background:#fff0f5;border-radius:18px;padding:18px;text-align:center;margin:12px 0;color:#9e5d7e}
 .achievement-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
@@ -271,6 +267,16 @@ nav{flex-wrap:wrap} nav button{min-width:calc(50% - 5px)}
 <div id="achievementSummary" class="achievement-summary"></div>
 <div id="achievementGrid" class="achievement-grid"></div>
 </section>
+<section id="history" class="hidden">
+<h2>📅 История заботы</h2>
+<div class="card">
+<label>Выбери день
+<input type="date" id="historyDate" onchange="renderHistory()">
+</label>
+<div id="historyContent"></div>
+</div>
+</section>
+
 <section id="manage" class="hidden">
 <h2>🐾 Мои питомцы</h2>
 <div id="petList"></div>
@@ -579,7 +585,7 @@ const monthStart = shiftDate(now, -29);
   }
 }
 
-/* Просмотр и изменение отметок прямо в календаре */
+/* Воспоминания за выбранный день */
 function renderWinsDay(date, scroll = true) {
   selectedWinsDate = date;
   const panel = document.getElementById("winsDayDetails");
@@ -590,30 +596,25 @@ function renderWinsDay(date, scroll = true) {
   title.textContent = "🌸 " + formatted;
   content.innerHTML = "";
   const wins = (data.wins || []).filter(w => w.date === date);
-  if (wins.length) {
-    const heading = document.createElement("h4");
-    heading.textContent = "💗 Хорошие события";
-    content.appendChild(heading);
-    wins.forEach(win => {
-      const item = document.createElement("p");
-      item.textContent = "💗 " + win.text;
-      item.style.whiteSpace = "pre-wrap";
-      content.appendChild(item);
-    });
+  const checks = Object.keys(data.checks || {}).filter(k => k.split("|")[1] === date && data.checks[k]);
+  if (!wins.length && !checks.length) {
+    const empty = document.createElement("p");
+    empty.textContent = "В этот день пока нет записей. Но он всё равно был частью твоей жизни ❤️";
+    content.appendChild(empty);
   }
-  const heading = document.createElement("h4");
-  heading.textContent = "🌷 Моя забота в этот день";
-  content.appendChild(heading);
-  const result = renderDay(date);
-  const summary = document.createElement("p");
-  summary.className = "note";
-  summary.textContent = "Выполнено: " + result.done + " из " + result.total + ". Галочки можно исправлять прямо здесь.";
-  content.appendChild(summary);
-  const tasks = document.createElement("div");
-  tasks.className = "calendar-day-tasks";
-  tasks.innerHTML = result.html;
-  content.appendChild(tasks);
-  bindChecks(tasks);
+  wins.forEach(win => {
+    const item = document.createElement("p");
+    item.textContent = "💗 " + win.text;
+    content.appendChild(item);
+  });
+  checks.forEach(k => {
+    const [taskId, , slotIndex] = k.split("|");
+    const task = data.tasks.find(t => t.id === taskId);
+    const slot = task ? slots(task)[Number(slotIndex)] : null;
+    const item = document.createElement("p");
+    item.textContent = "✓ " + (task ? task.name : "Выполненное дело") + (slot && slot !== "Выполнено" ? " — " + slot : "");
+    content.appendChild(item);
+  });
   panel.classList.remove("hidden");
   document.querySelectorAll(".win-calendar-day").forEach(day => day.classList.toggle("selected", day.title === formatted));
   if (scroll) panel.scrollIntoView({behavior:"smooth",block:"nearest"});
@@ -868,8 +869,8 @@ if (input.checked) {
 }
 persist();
 renderToday();
+renderHistory();
 renderWinsStats();
-if (selectedWinsDate) renderWinsDay(selectedWinsDate, false);
  updateAchievements(true);
   
 });
@@ -887,12 +888,19 @@ r.done?"Каждая галочка — это твоя забота. Ты мо�
 "Сегодня новый день. Не нужно быть идеальной ❤️";
 bindChecks(document.getElementById("todayTasks"));
 }
+function renderHistory(){
+let date=document.getElementById("historyDate").value||today();
+let r=renderDay(date);
+document.getElementById("historyContent").innerHTML="<p>Выполнено: "+r.done+" из "+r.total+"</p>"+r.html;
+bindChecks(document.getElementById("historyContent"));
+}
 function show(tab){
-for(let name of ["today","wins","achievements","manage"]){
+for(let name of ["today","history","wins","achievements","manage"]){
 document.getElementById(name).classList.toggle("hidden",name!==tab);
 document.getElementById("tab"+name[0].toUpperCase()+name.slice(1)).classList.toggle("active",name===tab);
 }
 if(tab==="manage")renderManage();
+if(tab==="history")renderHistory();
 if(tab==="today")renderToday();
 if(tab==="wins")renderWins();
 if(tab==="achievements")renderAchievements();
@@ -999,6 +1007,7 @@ if (!Array.isArray(data.wins)) data.wins = [];
 persist();
 renderManage();
 renderToday();
+renderHistory();
 renderWins();
 
 alert("Данные восстановлены 🌸");
@@ -1007,6 +1016,7 @@ alert("Данные восстановлены 🌸");
 reader.readAsText(file);
 }
 
+document.getElementById("historyDate").value = today();
 document.getElementById("winDate").value = today();
 
 renderToday();
