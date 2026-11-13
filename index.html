@@ -82,6 +82,7 @@ label{display:block;margin:10px 0}
 }
 nav{display:flex;gap:7px;margin-top:15px}
 nav button{flex:1;padding:10px 4px;font-size:14px}
+nav{flex-wrap:wrap} nav button{min-width:calc(50% - 5px)}
 .active{background:white}
   
 /* Статистика маленьких побед */
@@ -157,6 +158,19 @@ nav button{flex:1;padding:10px 4px;font-size:14px}
 .win-calendar-day.selected{box-shadow:inset 0 0 0 2px #b96791}
 
 
+/* Награды */
+.achievement-summary{background:#fff0f5;border-radius:18px;padding:18px;text-align:center;margin:12px 0;color:#9e5d7e}
+.achievement-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
+.achievement-card{border-radius:18px;padding:17px 10px;text-align:center;background:#f3eef0;color:#998b92;min-height:154px}
+.achievement-card.unlocked{background:#fce5ee;color:#80546b}
+.achievement-emoji{font-size:37px;margin-bottom:8px}
+.achievement-card strong{display:block;font-size:14px}
+.achievement-card p{font-size:12px;line-height:1.4;margin:8px 0}
+.achievement-date{font-size:11px;color:#a66a87}
+#achievementToast{position:fixed;inset:0;background:#3e293a80;z-index:10000;display:flex;align-items:center;justify-content:center;padding:24px}
+#achievementToast.hidden{display:none}
+.achievement-popup{background:#fff5f8;border-radius:26px;padding:30px 24px;max-width:360px;width:100%;text-align:center;box-shadow:0 14px 45px #3e293a40}
+.achievement-popup .achievement-emoji{font-size:65px}
 </style>
 </head>
 <body>
@@ -167,6 +181,7 @@ nav button{flex:1;padding:10px 4px;font-size:14px}
 <button id="tabToday" class="active" onclick="show('today')">Сегодня</button>
 <button id="tabHistory" onclick="show('history')">История</button>
 <button id="tabWins" onclick="show('wins')">Мои победы ❤️</button>
+<button id="tabAchievements" onclick="show('achievements')">🏆 Достижения</button>
 <button id="tabManage" onclick="show('manage')">Мои дела</button>
 </nav>
 </header>
@@ -246,6 +261,12 @@ nav button{flex:1;padding:10px 4px;font-size:14px}
   </div>
 </section>
 
+<section id="achievements" class="hidden">
+<h2>🏆 Мои достижения</h2>
+<p>Здесь мы отмечаем заботу и маленькие шаги. Перерывы не отменяют уже полученные награды ❤️</p>
+<div id="achievementSummary" class="achievement-summary"></div>
+<div id="achievementGrid" class="achievement-grid"></div>
+</section>
 <section id="history" class="hidden">
 <h2>📅 История заботы</h2>
 <div class="card">
@@ -316,6 +337,13 @@ nav button{flex:1;padding:10px 4px;font-size:14px}
   <div id="praiseText"></div>
 </div>
 
+<div id="achievementToast" class="hidden" role="dialog" aria-modal="true" aria-labelledby="achievementPopupTitle">
+<div class="achievement-popup">
+<div class="achievement-emoji" id="achievementPopupEmoji">🏆</div>
+<h2 id="achievementPopupTitle">Новое достижение!</h2>
+<p id="achievementPopupText"></p>
+<button type="button" onclick="closeAchievementToast()">❤️ Как приятно!</button>
+</div></div>
 <script>
 const KEY="ya-molodets-data-v1";
 const today=()=>localDate(new Date());
@@ -356,6 +384,82 @@ try{localStorage.setItem(KEY,JSON.stringify(data));}
 catch(e){alert("Не удалось сохранить данные. Сделай резервную копию.");}
 }
   
+/* Достижения: сохраняем награды, не меняя существующие записи */
+const ACHIEVEMENTS = [
+  {id:"first",emoji:"🌱",name:"Первый шаг",description:"Первое выполненное дело",test:m=>m.checkCount>=1},
+  {id:"seven",emoji:"💗",name:"7 дней заботы",description:"Семь разных дней с маленькими победами",test:m=>m.activeDays>=7},
+  {id:"pets30",emoji:"🐾",name:"Доброе сердце",description:"30 выполненных дел для питомцев",test:m=>m.petChecks>=30},
+  {id:"joy10",emoji:"🌷",name:"Коллекционер радостей",description:"10 хороших воспоминаний",test:m=>m.winCount>=10},
+  {id:"course",emoji:"✨",name:"Я справилась!",description:"Все отметки одного завершённого курса",test:m=>m.finishedCourse},
+  {id:"month",emoji:"🦋",name:"Месяц нежности",description:"30 разных дней с маленькими победами",test:m=>m.activeDays>=30},
+  {id:"self10",emoji:"🌸",name:"Я выбираю себя",description:"10 выполненных дел из категории «Для себя»",test:m=>m.selfChecks>=10},
+  {id:"health20",emoji:"🌿",name:"Бережно к себе",description:"20 выполненных дел для здоровья",test:m=>m.healthChecks>=20}
+];
+if (!data.achievements || typeof data.achievements !== "object" || Array.isArray(data.achievements)) data.achievements = {};
+function achievementMetrics(){
+  const checked=Object.keys(data.checks||{}).filter(k=>data.checks[k] && k.split("|")[1]<=today());
+  const taskMap=new Map(data.tasks.map(t=>[t.id,t]));
+  const dates=new Set(checked.map(k=>k.split("|")[1]));
+  (data.wins||[]).forEach(w=>{if(w.date<=today())dates.add(w.date)});
+  const categoryCount=cat=>checked.filter(k=>taskMap.get(k.split("|")[0])?.category===cat).length;
+  const finishedCourse=data.tasks.some(t=>{
+    if(!(t.duration>0) || addDays(t.start,t.duration-1)>today())return false;
+    for(let i=0;i<t.duration;i++){
+      const date=addDays(t.start,i);
+      if(!eligible(t,date))continue;
+      for(let j=0;j<slots(t).length;j++)if(!data.checks[key(t,date,j)])return false;
+    }
+    return true;
+  });
+  return {checkCount:checked.length,activeDays:dates.size,petChecks:categoryCount("pets"),selfChecks:categoryCount("self"),healthChecks:categoryCount("health"),winCount:(data.wins||[]).filter(w=>w.date<=today()).length,finishedCourse};
+}
+let achievementQueue=[];
+let achievementShowing=false;
+function updateAchievements(notify=false){
+  const metrics=achievementMetrics();
+  let changed=false;
+  ACHIEVEMENTS.forEach(a=>{
+    if(!data.achievements[a.id] && a.test(metrics)){
+      data.achievements[a.id]=today();changed=true;
+      if(notify)achievementQueue.push(a);
+    }
+  });
+  if(changed)persist();
+  renderAchievements();
+  if(notify)showNextAchievement();
+}
+function renderAchievements(){
+  const grid=document.getElementById("achievementGrid");
+  const summary=document.getElementById("achievementSummary");
+  if(!grid||!summary)return;
+  const unlocked=ACHIEVEMENTS.filter(a=>data.achievements[a.id]).length;
+  summary.textContent="💗 Получено наград: "+unlocked+" из "+ACHIEVEMENTS.length;
+  grid.innerHTML="";
+  ACHIEVEMENTS.forEach(a=>{
+    const date=data.achievements[a.id];
+    const card=document.createElement("div");
+    card.className="achievement-card"+(date?" unlocked":"");
+    const emoji=document.createElement("div");emoji.className="achievement-emoji";emoji.textContent=date?a.emoji:"🔒";
+    const name=document.createElement("strong");name.textContent=a.name;
+    const desc=document.createElement("p");desc.textContent=a.description;
+    const status=document.createElement("div");status.className="achievement-date";
+    status.textContent=date?"Получено ❤️ · "+new Date(date+"T12:00:00").toLocaleDateString("ru-RU"):"Всё впереди 🌷";
+    card.append(emoji,name,desc,status);grid.appendChild(card);
+  });
+}
+function showNextAchievement(){
+  if(achievementShowing||!achievementQueue.length)return;
+  const a=achievementQueue.shift();achievementShowing=true;
+  document.getElementById("achievementPopupEmoji").textContent=a.emoji;
+  document.getElementById("achievementPopupTitle").textContent=a.name;
+  document.getElementById("achievementPopupText").textContent="Новое достижение! "+a.description+". Ты молодец! ❤️";
+  document.getElementById("achievementToast").classList.remove("hidden");
+}
+function closeAchievementToast(){
+  document.getElementById("achievementToast").classList.add("hidden");
+  achievementShowing=false;showNextAchievement();
+}
+
 /* Отображение дневника маленьких побед */
 
 let winsMonth = new Date();
@@ -646,6 +750,7 @@ function saveWin() {
   cancelWinEdit();
 
   renderWins();
+  updateAchievements(true);
   showPraise("self");
 }
 
@@ -766,6 +871,7 @@ persist();
 renderToday();
 renderHistory();
 renderWinsStats();
+ updateAchievements(true);
   
 });
 });
@@ -789,7 +895,7 @@ document.getElementById("historyContent").innerHTML="<p>Выполнено: "+r.
 bindChecks(document.getElementById("historyContent"));
 }
 function show(tab){
-for(let name of ["today","history","wins","manage"]){
+for(let name of ["today","history","wins","achievements","manage"]){
 document.getElementById(name).classList.toggle("hidden",name!==tab);
 document.getElementById("tab"+name[0].toUpperCase()+name.slice(1)).classList.toggle("active",name===tab);
 }
@@ -797,6 +903,7 @@ if(tab==="manage")renderManage();
 if(tab==="history")renderHistory();
 if(tab==="today")renderToday();
 if(tab==="wins")renderWins();
+if(tab==="achievements")renderAchievements();
 }
 function renderManage(){
 document.getElementById("petList").innerHTML=data.pets.map((p,i)=>'<div class="card">🐾 '+esc(p)+' <button data-remove-pet="'+i+'">Удалить</button></div>').join("");
@@ -914,6 +1021,7 @@ document.getElementById("winDate").value = today();
 
 renderToday();
 renderWins();
+updateAchievements(false);
 </script>
   
 <script>
