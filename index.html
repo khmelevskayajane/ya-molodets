@@ -347,9 +347,21 @@ function renderWinsStats() {
   const calendar = document.getElementById("winsCalendar");
   if (!stats || !calendar) return;
 
-  const now = today();
-  const weekStart = addDays(now, -6);
-  const monthStart = addDays(now, -29);
+  
+const now = today();
+
+const shiftDate = (date, amount) => {
+  const d = new Date(date + "T12:00:00");
+  d.setDate(d.getDate() + amount);
+  return [
+    d.getFullYear(),
+    String(d.getMonth() + 1).padStart(2, "0"),
+    String(d.getDate()).padStart(2, "0")
+  ].join("-");
+};
+
+const weekStart = shiftDate(now, -6);
+const monthStart = shiftDate(now, -29);
 
   const completedDates = Object.keys(data.checks)
     .filter(key => data.checks[key])
@@ -397,7 +409,7 @@ function renderWinsStats() {
 
   // Последние 28 дней, включая сегодня
   for (let i = 27; i >= 0; i--) {
-    const date = addDays(now, -i);
+    const date = shiftDate(now, -i);
     const day = document.createElement("div");
     day.className = "win-calendar-day";
 
