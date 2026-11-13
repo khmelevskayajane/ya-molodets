@@ -84,6 +84,71 @@ label{display:block;margin:10px 0}
 nav{display:flex;gap:7px;margin-top:15px}
 nav button{flex:1;padding:10px 4px;font-size:14px}
 .active{background:white}
+  
+/* Статистика маленьких побед */
+#winsStats {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+  margin: 18px 0 26px;
+}
+
+.win-stat {
+  background: #fff0f5;
+  border: 1px solid #f3dce5;
+  border-radius: 18px;
+  padding: 18px 10px;
+  text-align: center;
+}
+
+.win-stat-number {
+  font-size: 30px;
+  font-weight: 750;
+  color: #bf7197;
+}
+
+.win-stat-label {
+  font-size: 13px;
+  color: #856d79;
+  margin-top: 6px;
+  line-height: 1.4;
+}
+
+/* Календарь маленьких побед */
+#winsCalendar {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  gap: 5px;
+  margin-top: 15px;
+}
+
+.win-calendar-day {
+  min-width: 0;
+  aspect-ratio: 1;
+  border-radius: 11px;
+  background: #f8f2f4;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-direction: column;
+  font-size: 12px;
+  color: #806b74;
+}
+
+.win-calendar-day.has-win {
+  background: #f9dce8;
+  color: #a75d7e;
+}
+
+.win-calendar-day .heart {
+  font-size: 14px;
+}
+
+.win-calendar-day.today {
+  outline: 2px solid #d48fac;
+  outline-offset: -2px;
+}
+
 </style>
 </head>
 <body>
@@ -110,6 +175,16 @@ nav button{flex:1;padding:10px 4px;font-size:14px}
 
 <section id="wins" class="hidden">
   <h2>💗 Мои маленькие победы</h2>
+<div class="card">
+  <h3>🌸 Моя забота в цифрах</h3>
+  <p>Здесь мы замечаем хорошее, а не оцениваем себя ❤️</p>
+
+  <div id="winsStats"></div>
+
+  <h3>💗 Календарь маленьких побед</h3>
+  <div id="winsCalendar"></div>
+</div>
+
 
   <div class="card">
     <p>Здесь живут твои радости, достижения и тёплые моменты. Даже самые маленькие ❤️</p>
@@ -265,10 +340,106 @@ catch(e){alert("Не удалось сохранить данные. Сдела�
 /* Сохранение хороших событий */
 function saveWin() {
 /* Отображение дневника маленьких побед */
+
+/* Статистика заботы и маленьких побед */
+function renderWinsStats() {
+  const stats = document.getElementById("winsStats");
+  const calendar = document.getElementById("winsCalendar");
+  if (!stats || !calendar) return;
+
+  const now = today();
+  const weekStart = addDays(now, -6);
+  const monthStart = addDays(now, -29);
+
+  const completedDates = Object.keys(data.checks)
+    .filter(key => data.checks[key])
+    .map(key => key.split("|")[1]);
+
+  const wins = Array.isArray(data.wins) ? data.wins : [];
+
+  const countTasks = start =>
+    completedDates.filter(date => date >= start && date <= now).length;
+
+  const countWins = start =>
+    wins.filter(win => win.date >= start && win.date <= now).length;
+
+  const statItems = [
+    [countTasks(weekStart), "Дел за 7 дней"],
+    [countWins(weekStart), "Радостей за 7 дней"],
+    [countTasks(monthStart), "Дел за 30 дней"],
+    [countWins(monthStart), "Радостей за 30 дней"]
+  ];
+
+  stats.innerHTML = "";
+
+  statItems.forEach(([number, label]) => {
+    const card = document.createElement("div");
+    card.className = "win-stat";
+
+    const value = document.createElement("div");
+    value.className = "win-stat-number";
+    value.textContent = number;
+
+    const caption = document.createElement("div");
+    caption.className = "win-stat-label";
+    caption.textContent = label;
+
+    card.append(value, caption);
+    stats.appendChild(card);
+  });
+
+  const activeDates = new Set([
+    ...completedDates,
+    ...wins.map(win => win.date)
+  ]);
+
+  calendar.innerHTML = "";
+
+  // Последние 28 дней, включая сегодня
+  for (let i = 27; i >= 0; i--) {
+    const date = addDays(now, -i);
+    const day = document.createElement("div");
+    day.className = "win-calendar-day";
+
+    if (activeDates.has(date)) {
+      day.classList.add("has-win");
+    }
+
+    if (date === now) {
+      day.classList.add("today");
+    }
+
+    const number = document.createElement("span");
+    number.textContent = Number(date.slice(-2));
+
+    day.appendChild(number);
+
+    if (activeDates.has(date)) {
+      const heart = document.createElement("span");
+      heart.className = "heart";
+      heart.textContent = "♥";
+      day.appendChild(heart);
+    }
+
+    const formattedDate = new Date(date + "T12:00:00")
+      .toLocaleDateString("ru-RU", {
+        day: "numeric",
+        month: "long"
+      });
+
+    day.title = formattedDate;
+    day.setAttribute("aria-label",
+      formattedDate + (activeDates.has(date) ? " — есть маленькие победы" : "")
+    );
+
+    calendar.appendChild(day);
+  }
+}
 function renderWins() {
   const list = document.getElementById("winsList");
   if (!list) return;
-
+  renderWinsStats();
+    
   const categoryNames = {
     joy: "🌸 Маленькая радость",
     self: "💗 Забота о себе",
@@ -476,7 +647,8 @@ if (input.checked) {
 persist();
 renderToday();
 renderHistory();
-
+renderWinsStats();
+  
 });
 });
 }
