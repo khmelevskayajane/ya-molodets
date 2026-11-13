@@ -147,6 +147,15 @@ nav button{flex:1;padding:10px 4px;font-size:14px}
   outline: 2px solid #d48fac;
   outline-offset: -2px;
 }
+.calendar-nav{display:flex;justify-content:space-between;align-items:center;gap:10px;margin-top:15px}
+.calendar-nav strong{text-align:center;font-size:16px;color:#a75d7e}
+.calendar-nav button{padding:8px 14px}
+.calendar-today{display:block;margin:10px auto 0;padding:7px 15px;font-size:13px}
+.calendar-weekdays{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:5px;margin-top:15px;text-align:center;font-size:12px;color:#856d79}
+.calendar-empty{min-width:0;aspect-ratio:1}
+.win-calendar-day{padding:0;width:100%;border:0}
+.win-calendar-day.selected{box-shadow:inset 0 0 0 2px #b96791}
+
 
 </style>
 </head>
@@ -181,6 +190,13 @@ nav button{flex:1;padding:10px 4px;font-size:14px}
   <div id="winsStats"></div>
 
   <h3>💗 Календарь маленьких побед</h3>
+  <div class="calendar-nav">
+    <button type="button" onclick="changeWinsMonth(-1)" aria-label="Предыдущий месяц">❮</button>
+    <strong id="winsMonthTitle"></strong>
+    <button type="button" onclick="changeWinsMonth(1)" aria-label="Следующий месяц">❯</button>
+  </div>
+  <button type="button" class="calendar-today" onclick="goWinsToday()">🌷 Сегодня</button>
+  <div id="winsCalendarWeekdays" class="calendar-weekdays"></div>
   <div id="winsCalendar"></div>
   <div id="winsDayDetails" class="card hidden">
   <h3 id="winsDayTitle">🌸 Этот день</h3>
@@ -216,9 +232,10 @@ nav button{flex:1;padding:10px 4px;font-size:14px}
       </select>
     </label>
 
-    <button type="button" onclick="saveWin()">
-      ❤️ Сохранить хорошее событие
-    </button>
+    <div class="actions">
+      <button type="button" id="saveWinButton" onclick="saveWin()">❤️ Сохранить хорошее событие</button>
+      <button type="button" id="cancelWinEditButton" class="hidden" onclick="cancelWinEdit()">Отменить изменение</button>
+    </div>
   </div>
 
   <div class="card">
@@ -341,6 +358,25 @@ catch(e){alert("Не удалось сохранить данные. Сдела�
   
 /* Отображение дневника маленьких побед */
 
+let winsMonth = new Date();
+winsMonth.setDate(1);
+let selectedWinsDate = null;
+let editingWinId = null;
+
+function changeWinsMonth(delta) {
+  winsMonth = new Date(winsMonth.getFullYear(), winsMonth.getMonth() + delta, 1);
+  selectedWinsDate = null;
+  document.getElementById("winsDayDetails").classList.add("hidden");
+  renderWinsStats();
+}
+function goWinsToday() {
+  winsMonth = new Date();
+  winsMonth.setDate(1);
+  selectedWinsDate = null;
+  document.getElementById("winsDayDetails").classList.add("hidden");
+  renderWinsStats();
+}
+
 /* Статистика заботы и маленьких побед */
 function renderWinsStats() {
   const stats = document.getElementById("winsStats");
@@ -400,113 +436,92 @@ const monthStart = shiftDate(now, -29);
     stats.appendChild(card);
   });
 
-  const activeDates = new Set([
-    ...completedDates,
-    ...wins.map(win => win.date)
-  ]);
-
+  const activeDates = new Set([...completedDates, ...wins.map(win => win.date)]);
+  const year = winsMonth.getFullYear();
+  const month = winsMonth.getMonth();
+  const monthLabel = winsMonth.toLocaleDateString("ru-RU", {month:"long", year:"numeric"});
+  document.getElementById("winsMonthTitle").textContent = monthLabel[0].toUpperCase() + monthLabel.slice(1);
+  const weekdays = document.getElementById("winsCalendarWeekdays");
+  weekdays.innerHTML = "";
+  ["Пн", "Вт", "Ср", "Чт", "Пт", "Сб", "Вс"].forEach(label => {
+    const item = document.createElement("span");
+    item.textContent = label;
+    weekdays.appendChild(item);
+  });
   calendar.innerHTML = "";
-
-  // Последние 28 дней, включая сегодня
-  for (let i = 27; i >= 0; i--) {
-    const date = shiftDate(now, -i);
-    const day = document.createElement("button");
-day.type = "button";
-day.style.cursor = "pointer";
-day.onclick = () => renderWinsDay(date);
-    day.className = "win-calendar-day";
-
-    if (activeDates.has(date)) {
-      day.classList.add("has-win");
-    }
-
-/* Воспоминания за выбранный день */
-function renderWinsDay(date) {
-  const panel = document.getElementById("winsDayDetails");
-  const title = document.getElementById("winsDayTitle");
-  const content = document.getElementById("winsDayContent");
-
-  if (!panel || !title || !content) return;
-
-  const formatted = new Date(date + "T12:00:00")
-    .toLocaleDateString("ru-RU", {
-      day: "numeric",
-      month: "long",
-      year: "numeric"
-    });
-
-  title.textContent = "🌸 " + formatted;
-  content.innerHTML = "";
-
-  const wins = (data.wins || []).filter(w => w.date === date);
-
-  const checks = Object.keys(data.checks || {})
-    .filter(key => {
-      const parts = key.split("|");
-      return parts[1] === date && data.checks[key];
-    });
-
-  if (!wins.length && !checks.length) {
-    const empty = document.createElement("p");
-    empty.textContent = "В этот день пока нет записей. Но он всё равно был частью твоей жизни ❤️";
-    content.appendChild(empty);
+  const offset = (new Date(year, month, 1).getDay() + 6) % 7;
+  for (let i = 0; i < offset; i++) {
+    const empty = document.createElement("span");
+    empty.className = "calendar-empty";
+    calendar.appendChild(empty);
   }
-
-  wins.forEach(win => {
-    const item = document.createElement("p");
-    item.textContent = "💗 " + win.text;
-    content.appendChild(item);
-  });
-
-  checks.forEach(key => {
-    const parts = key.split("|");
-    const task = data.tasks.find(t => t.id === parts[0]);
-    const label = task ? task.name : "Выполненное дело";
-
-    const item = document.createElement("p");
-    item.textContent = "✓ " + label;
-    content.appendChild(item);
-  });
-
-  panel.classList.remove("hidden");
-  panel.scrollIntoView({ behavior: "smooth", block: "nearest" });
-}
-
-    if (date === now) {
-      day.classList.add("today");
-    }
-
-    const number = document.createElement("span");
-    number.textContent = Number(date.slice(-2));
-
-    day.appendChild(number);
-
+  const daysInMonth = new Date(year, month + 1, 0).getDate();
+  for (let number = 1; number <= daysInMonth; number++) {
+    const date = localDate(new Date(year, month, number));
+    const day = document.createElement("button");
+    day.type = "button";
+    day.className = "win-calendar-day";
+    day.onclick = () => renderWinsDay(date);
+    if (activeDates.has(date)) day.classList.add("has-win");
+    if (date === now) day.classList.add("today");
+    if (date === selectedWinsDate) day.classList.add("selected");
+    const label = document.createElement("span");
+    label.textContent = number;
+    day.appendChild(label);
     if (activeDates.has(date)) {
       const heart = document.createElement("span");
       heart.className = "heart";
       heart.textContent = "♥";
       day.appendChild(heart);
     }
-
-    const formattedDate = new Date(date + "T12:00:00")
-      .toLocaleDateString("ru-RU", {
-        day: "numeric",
-        month: "long"
-      });
-
-    day.title = formattedDate;
-    day.setAttribute("aria-label",
-      formattedDate + (activeDates.has(date) ? " — есть маленькие победы" : "")
-    );
-
+    const formatted = new Date(date + "T12:00:00").toLocaleDateString("ru-RU", {day:"numeric",month:"long",year:"numeric"});
+    day.title = formatted;
+    day.setAttribute("aria-label", formatted + (activeDates.has(date) ? " — есть маленькие победы" : ""));
     calendar.appendChild(day);
   }
 }
+
+/* Воспоминания за выбранный день */
+function renderWinsDay(date, scroll = true) {
+  selectedWinsDate = date;
+  const panel = document.getElementById("winsDayDetails");
+  const title = document.getElementById("winsDayTitle");
+  const content = document.getElementById("winsDayContent");
+  if (!panel || !title || !content) return;
+  const formatted = new Date(date + "T12:00:00").toLocaleDateString("ru-RU", {day:"numeric",month:"long",year:"numeric"});
+  title.textContent = "🌸 " + formatted;
+  content.innerHTML = "";
+  const wins = (data.wins || []).filter(w => w.date === date);
+  const checks = Object.keys(data.checks || {}).filter(k => k.split("|")[1] === date && data.checks[k]);
+  if (!wins.length && !checks.length) {
+    const empty = document.createElement("p");
+    empty.textContent = "В этот день пока нет записей. Но он всё равно был частью твоей жизни ❤️";
+    content.appendChild(empty);
+  }
+  wins.forEach(win => {
+    const item = document.createElement("p");
+    item.textContent = "💗 " + win.text;
+    content.appendChild(item);
+  });
+  checks.forEach(k => {
+    const [taskId, , slotIndex] = k.split("|");
+    const task = data.tasks.find(t => t.id === taskId);
+    const slot = task ? slots(task)[Number(slotIndex)] : null;
+    const item = document.createElement("p");
+    item.textContent = "✓ " + (task ? task.name : "Выполненное дело") + (slot && slot !== "Выполнено" ? " — " + slot : "");
+    content.appendChild(item);
+  });
+  panel.classList.remove("hidden");
+  document.querySelectorAll(".win-calendar-day").forEach(day => day.classList.toggle("selected", day.title === formatted));
+  if (scroll) panel.scrollIntoView({behavior:"smooth",block:"nearest"});
+}
+
 function renderWins() {
   const list = document.getElementById("winsList");
   if (!list) return;
   renderWinsStats();
-    
+  if (selectedWinsDate) renderWinsDay(selectedWinsDate, false);
+
   const categoryNames = {
     joy: "🌸 Маленькая радость",
     self: "💗 Забота о себе",
@@ -551,6 +566,11 @@ function renderWins() {
     description.textContent = win.text;
     description.style.whiteSpace = "pre-wrap";
 
+    const edit = document.createElement("button");
+    edit.type = "button";
+    edit.textContent = "✏️ Изменить";
+    edit.onclick = () => editWin(win.id);
+
     const remove = document.createElement("button");
     remove.type = "button";
     remove.textContent = "🗑 Удалить";
@@ -558,13 +578,34 @@ function renderWins() {
       if (!confirm("Удалить это хорошее событие?")) return;
 
       data.wins = data.wins.filter(item => item.id !== win.id);
+      if (editingWinId === win.id) cancelWinEdit();
       persist();
       renderWins();
     };
 
-    card.append(date, category, description, remove);
+    card.append(date, category, description, edit, " ", remove);
     list.appendChild(card);
   });
+}
+
+function editWin(id) {
+  const win = data.wins.find(item => item.id === id);
+  if (!win) return;
+  editingWinId = id;
+  document.getElementById("winDate").value = win.date;
+  document.getElementById("winText").value = win.text;
+  document.getElementById("winCategory").value = win.category;
+  document.getElementById("saveWinButton").textContent = "💗 Сохранить изменения";
+  document.getElementById("cancelWinEditButton").classList.remove("hidden");
+  document.getElementById("winText").scrollIntoView({behavior:"smooth",block:"center"});
+}
+function cancelWinEdit() {
+  editingWinId = null;
+  document.getElementById("winDate").value = today();
+  document.getElementById("winText").value = "";
+  document.getElementById("winCategory").value = "joy";
+  document.getElementById("saveWinButton").textContent = "❤️ Сохранить хорошее событие";
+  document.getElementById("cancelWinEditButton").classList.add("hidden");
 }
 
 /* Сохранение хороших событий */
@@ -591,11 +632,18 @@ function saveWin() {
     category: category
   };
 
-  data.wins.push(win);
+  if (editingWinId) {
+    const existing = data.wins.find(item => item.id === editingWinId);
+    if (existing) {
+      existing.date = date;
+      existing.text = description;
+      existing.category = category;
+    }
+  } else {
+    data.wins.push(win);
+  }
   persist();
-
-  document.getElementById("winText").value = "";
-  document.getElementById("winCategory").value = "joy";
+  cancelWinEdit();
 
   renderWins();
   showPraise("self");
